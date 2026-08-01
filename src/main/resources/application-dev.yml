@@ -1,0 +1,13 @@
+# ==================== 开发环境配置 ====================
+# 本机已安装 MySQL + Redis，后续阶段按需在此补充连接配置：
+
+# 阶段 2（用户模块）启用 MySQL：
+#   spring.datasource.driver-class-name: com.mysql.cj.jdbc.Driver
+#   spring.datasource.url: jdbc:mysql://localhost:3306/oa_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+#   spring.datasource.username: root
+#   spring.datasource.password: your_password
+
+# 阶段 4（Redis 接入）启用：
+#   spring.data.redis.host: localhost
+#   spring.data.redis.port: 6379
+#   spring.data.redis.password:

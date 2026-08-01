@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: oa-system
+  profiles:
+    active: dev
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+
+server:
+  port: 8080
+
+# OpenAPI / Swagger 接口文档
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: info
+    com.tuning.oasystem: info
