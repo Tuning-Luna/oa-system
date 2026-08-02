@@ -20,6 +20,28 @@ spring:
           max-idle: 8
           min-idle: 0
 
+  # RabbitMQ（阶段 6 接入）：本地默认 guest/guest
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        # 手动 ack：消费成功后确认，失败重投
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+
+  # 文件上传限制（阶段 7）：单文件 20MB，请求体 21MB
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+
+# 文件存储目录（阶段 7）：本地磁盘，项目根目录下 ./uploads
+upload:
+  dir: ./uploads
+
 mybatis-plus:
   configuration:
     # 下划线字段自动映射为驼峰（user_name -> userName）

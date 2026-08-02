@@ -15,6 +15,7 @@ import com.tuning.oasystem.enums.BusinessType;
 import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.LeaveRequestMapper;
 import com.tuning.oasystem.mapper.SysUserMapper;
+import com.tuning.oasystem.producer.ApprovalNoticeProducer;
 import com.tuning.oasystem.service.ApprovalRecordService;
 import com.tuning.oasystem.service.LeaveService;
 import com.tuning.oasystem.utils.UserNameResolver;
@@ -42,15 +43,18 @@ public class LeaveServiceImpl implements LeaveService {
     private final SysUserMapper sysUserMapper;
     private final ApprovalRecordService recordService;
     private final UserNameResolver userNameResolver;
+    private final ApprovalNoticeProducer noticeProducer;
 
     public LeaveServiceImpl(LeaveRequestMapper leaveMapper,
             SysUserMapper sysUserMapper,
             ApprovalRecordService recordService,
-            UserNameResolver userNameResolver) {
+            UserNameResolver userNameResolver,
+            ApprovalNoticeProducer noticeProducer) {
         this.leaveMapper = leaveMapper;
         this.sysUserMapper = sysUserMapper;
         this.recordService = recordService;
         this.userNameResolver = userNameResolver;
+        this.noticeProducer = noticeProducer;
     }
 
     @Override
@@ -90,6 +94,8 @@ public class LeaveServiceImpl implements LeaveService {
         entity.setStatus(next.getValue());
         leaveMapper.updateById(entity);
         recordService.record(BusinessType.LEAVE, id, operatorId, ApprovalAction.APPROVE, comment);
+        // 审批通过 → 异步通知申请人
+        noticeProducer.sendApprovalNotice(BusinessType.LEAVE, id, entity.getUserId(), operatorId, ApprovalStatus.APPROVED.getValue());
     }
 
     @Override
@@ -101,6 +107,8 @@ public class LeaveServiceImpl implements LeaveService {
         entity.setStatus(next.getValue());
         leaveMapper.updateById(entity);
         recordService.record(BusinessType.LEAVE, id, operatorId, ApprovalAction.REJECT, comment);
+        // 审批拒绝 → 异步通知申请人
+        noticeProducer.sendApprovalNotice(BusinessType.LEAVE, id, entity.getUserId(), operatorId, ApprovalStatus.REJECTED.getValue());
     }
 
     @Override

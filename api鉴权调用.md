@@ -91,3 +91,31 @@ curl -X POST http://localhost:8080/api/cache/evict -H "Authorization: Bearer <to
 #   oa:user:info:{userId}  用户信息+角色+权限（鉴权/me）
 #   oa:user:detail:{userId} 用户详情热点缓存
 #   oa:menu:tree            菜单树热点缓存
+
+# ============ 阶段 6：RabbitMQ 消息通知 ============
+# 审批通过/拒绝时，服务 → Exchange(oa.approval.exchange, direct) → Queue(oa.approval.notice.queue)
+#   → 消费者 → 写 sys_message（申请人通知）。异步旁路，不影响审批主流程。
+
+# 我的通知分页（readFlag 可选：0未读 1已读）
+curl "http://localhost:8080/api/messages?readFlag=0" -H "Authorization: Bearer <token>"
+# 未读计数
+curl http://localhost:8080/api/messages/unread-count -H "Authorization: Bearer <token>"
+# 标记单条已读 / 全部已读（仅本人通知可操作）
+curl -X PUT http://localhost:8080/api/messages/{id}/read -H "Authorization: Bearer <token>"
+curl -X PUT http://localhost:8080/api/messages/read-all -H "Authorization: Bearer <token>"
+
+# 验证异步通知：审批通过后查询申请人通知
+#   1) 提交请假 → 2) 审批人通过 → 3) 申请人 GET /api/messages/unread-count 应 ≥1
+
+# ============ 阶段 7：文件管理 ============
+# 存储本地磁盘 ./uploads/（upload.dir 配置）；全员共享列表/下载，删除限上传者；逻辑+物理删除；限 20MB + 类型白名单。
+
+# 上传（multipart/form-data，字段名 file；限 png/jpg/jpeg/gif/webp/pdf/doc/docx/xls/xlsx/ppt/pptx/zip/txt）
+curl -X POST http://localhost:8080/api/files/upload -H "Authorization: Bearer <token>" \
+  -F "file=@/path/to/photo.png"
+# 下载（返回文件流，Content-Disposition attachment）
+curl -o saved.png http://localhost:8080/api/files/{id}/download -H "Authorization: Bearer <token>"
+# 分页列表（fileName/contentType 模糊筛选）
+curl "http://localhost:8080/api/files?fileName=report&pageNum=1&pageSize=10" -H "Authorization: Bearer <token>"
+# 删除（仅上传者可删；逻辑 + 物理删除；删除后下载 404）
+curl -X DELETE http://localhost:8080/api/files/{id} -H "Authorization: Bearer <token>"

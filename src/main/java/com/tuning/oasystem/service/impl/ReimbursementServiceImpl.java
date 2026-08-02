@@ -15,6 +15,7 @@ import com.tuning.oasystem.enums.BusinessType;
 import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.ReimbursementRequestMapper;
 import com.tuning.oasystem.mapper.SysUserMapper;
+import com.tuning.oasystem.producer.ApprovalNoticeProducer;
 import com.tuning.oasystem.service.ApprovalRecordService;
 import com.tuning.oasystem.service.ReimbursementService;
 import com.tuning.oasystem.utils.UserNameResolver;
@@ -42,15 +43,18 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     private final SysUserMapper sysUserMapper;
     private final ApprovalRecordService recordService;
     private final UserNameResolver userNameResolver;
+    private final ApprovalNoticeProducer noticeProducer;
 
     public ReimbursementServiceImpl(ReimbursementRequestMapper reimburseMapper,
             SysUserMapper sysUserMapper,
             ApprovalRecordService recordService,
-            UserNameResolver userNameResolver) {
+            UserNameResolver userNameResolver,
+            ApprovalNoticeProducer noticeProducer) {
         this.reimburseMapper = reimburseMapper;
         this.sysUserMapper = sysUserMapper;
         this.recordService = recordService;
         this.userNameResolver = userNameResolver;
+        this.noticeProducer = noticeProducer;
     }
 
     @Override
@@ -85,6 +89,8 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         entity.setStatus(next.getValue());
         reimburseMapper.updateById(entity);
         recordService.record(BusinessType.REIMBURSEMENT, id, operatorId, ApprovalAction.APPROVE, comment);
+        // 审批通过 → 异步通知申请人
+        noticeProducer.sendApprovalNotice(BusinessType.REIMBURSEMENT, id, entity.getUserId(), operatorId, ApprovalStatus.APPROVED.getValue());
     }
 
     @Override
@@ -96,6 +102,8 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         entity.setStatus(next.getValue());
         reimburseMapper.updateById(entity);
         recordService.record(BusinessType.REIMBURSEMENT, id, operatorId, ApprovalAction.REJECT, comment);
+        // 审批拒绝 → 异步通知申请人
+        noticeProducer.sendApprovalNotice(BusinessType.REIMBURSEMENT, id, entity.getUserId(), operatorId, ApprovalStatus.REJECTED.getValue());
     }
 
     @Override
