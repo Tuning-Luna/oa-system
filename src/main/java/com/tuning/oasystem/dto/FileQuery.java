@@ -16,9 +16,9 @@ public class FileQuery {
     @Schema(description = "每页条数", example = "10")
     private Long pageSize;
 
-    @Schema(description = "文件名（模糊）")
-    private String fileName;
+    @Schema(description = "原始文件名（模糊）")
+    private String name;
 
-    @Schema(description = "文件类型（MIME 或扩展名，模糊）")
+    @Schema(description = "MIME 类型（模糊）")
     private String contentType;
 }

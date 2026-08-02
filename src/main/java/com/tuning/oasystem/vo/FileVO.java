@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 文件信息返回（不回传磁盘路径）
+ * 文件信息返回
  */
 @Data
 @Schema(description = "文件信息")
@@ -17,7 +17,7 @@ public class FileVO {
     private Long id;
 
     @Schema(description = "原始文件名")
-    private String fileName;
+    private String originalName;
 
     @Schema(description = "文件大小（字节）")
     private Long size;
@@ -25,7 +25,7 @@ public class FileVO {
     @Schema(description = "MIME 类型")
     private String contentType;
 
-    @Schema(description = "访问地址")
+    @Schema(description = "下载 URL")
     private String url;
 
     @Schema(description = "上传人ID")
@@ -34,19 +34,19 @@ public class FileVO {
     @Schema(description = "上传人姓名")
     private String uploaderName;
 
-    @Schema(description = "上传时间")
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    public static FileVO from(FileInfo file, String uploaderName) {
+    public static FileVO from(FileInfo info, String uploaderName) {
         FileVO vo = new FileVO();
-        vo.setId(file.getId());
-        vo.setFileName(file.getOriginalName());
-        vo.setSize(file.getSize());
-        vo.setContentType(file.getContentType());
-        vo.setUrl(file.getUrl());
-        vo.setUploaderId(file.getUploaderId());
+        vo.setId(info.getId());
+        vo.setOriginalName(info.getOriginalName());
+        vo.setSize(info.getSize());
+        vo.setContentType(info.getContentType());
+        vo.setUrl(info.getUrl());
+        vo.setUploaderId(info.getUploaderId());
         vo.setUploaderName(uploaderName);
-        vo.setCreateTime(file.getCreateTime());
+        vo.setCreateTime(info.getCreateTime());
         return vo;
     }
 }

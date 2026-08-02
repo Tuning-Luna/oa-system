@@ -108,14 +108,13 @@ curl -X PUT http://localhost:8080/api/messages/read-all -H "Authorization: Beare
 #   1) 提交请假 → 2) 审批人通过 → 3) 申请人 GET /api/messages/unread-count 应 ≥1
 
 # ============ 阶段 7：文件管理 ============
-# 存储本地磁盘 ./uploads/（upload.dir 配置）；全员共享列表/下载，删除限上传者；逻辑+物理删除；限 20MB + 类型白名单。
-
-# 上传（multipart/form-data，字段名 file；限 png/jpg/jpeg/gif/webp/pdf/doc/docx/xls/xlsx/ppt/pptx/zip/txt）
+# 存储：本地磁盘 ./upload（file.upload-dir），按日期分目录；访问范围：登录用户共享（删除限上传者或管理员）
+# 上传（multipart，字段 file；大小 ≤10MB，扩展名白名单：office/图片/PDF/txt/csv 等）
 curl -X POST http://localhost:8080/api/files/upload -H "Authorization: Bearer <token>" \
-  -F "file=@/path/to/photo.png"
-# 下载（返回文件流，Content-Disposition attachment）
-curl -o saved.png http://localhost:8080/api/files/{id}/download -H "Authorization: Bearer <token>"
-# 分页列表（fileName/contentType 模糊筛选）
-curl "http://localhost:8080/api/files?fileName=report&pageNum=1&pageSize=10" -H "Authorization: Bearer <token>"
-# 删除（仅上传者可删；逻辑 + 物理删除；删除后下载 404）
+  -F "file=@./report.pdf;type=application/pdf"
+# 下载（任何登录用户，按原始文件名）
+curl -OJ http://localhost:8080/api/files/{id}/download -H "Authorization: Bearer <token>"
+# 分页列表（按名称/类型筛选）
+curl "http://localhost:8080/api/files?name=report&pageNum=1&pageSize=10" -H "Authorization: Bearer <token>"
+# 删除（逻辑删除 + 物理清理；仅上传者或管理员）
 curl -X DELETE http://localhost:8080/api/files/{id} -H "Authorization: Bearer <token>"

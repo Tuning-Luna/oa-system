@@ -8,24 +8,20 @@ import com.tuning.oasystem.dto.FileQuery;
 import com.tuning.oasystem.entity.FileInfo;
 import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.FileInfoMapper;
+import com.tuning.oasystem.service.FileDownload;
 import com.tuning.oasystem.service.FileService;
-import com.tuning.oasystem.storage.StorageService;
+import com.tuning.oasystem.service.PermissionService;
+import com.tuning.oasystem.service.StorageService;
 import com.tuning.oasystem.utils.UserNameResolver;
-import com.tuning.oasystem.vo.FileDownload;
 import com.tuning.oasystem.vo.FileVO;
-import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * 文件管理服务实现
@@ -35,65 +31,65 @@ import java.util.UUID;
 @SuppressWarnings("null")
 public class FileServiceImpl implements FileService {
 
-    private static final long MAX_SIZE = 20L * 1024 * 1024; // 20MB
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "png", "jpg", "jpeg", "gif", "webp", "pdf",
-            "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "txt");
     private static final long DEFAULT_PAGE_SIZE = 10;
     private static final long MAX_PAGE_SIZE = 100;
 
     private final FileInfoMapper fileMapper;
-    private final StorageService storage;
+    private final StorageService storageService;
     private final UserNameResolver userNameResolver;
+    private final PermissionService permissionService;
+
+    @Value("${file.max-size-mb:10}")
+    private long maxSizeMb;
+
+    @Value("${file.allowed-extensions:}")
+    private String allowedExtensions;
 
     public FileServiceImpl(FileInfoMapper fileMapper,
-            StorageService storage,
-            UserNameResolver userNameResolver) {
+            StorageService storageService,
+            UserNameResolver userNameResolver,
+            PermissionService permissionService) {
         this.fileMapper = fileMapper;
-        this.storage = storage;
+        this.storageService = storageService;
         this.userNameResolver = userNameResolver;
+        this.permissionService = permissionService;
     }
 
     @Override
-    @Transactional
     public FileVO upload(Long uploaderId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "上传文件不能为空");
         }
-        if (file.getSize() > MAX_SIZE) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "文件大小超过 20MB 限制");
+        if (file.getSize() > maxSizeMb * 1024 * 1024) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "文件大小超过限制（最大 " + maxSizeMb + "MB）");
         }
-        String extension = extensionOf(file.getOriginalFilename());
-        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new BusinessException(ResultCode.BAD_REQUEST, "不支持的文件类型，仅允许: " + ALLOWED_EXTENSIONS);
+        validateExtension(file.getOriginalFilename());
+
+        String relativePath;
+        try {
+            relativePath = storageService.store(file);
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "文件存储失败");
         }
 
-        String storeName = buildStoreName(extension);
-        storage.store(file, storeName);
+        FileInfo info = new FileInfo();
+        info.setOriginalName(file.getOriginalFilename());
+        info.setStoreName(relativePath.substring(relativePath.lastIndexOf('/') + 1));
+        info.setPath(relativePath);
+        info.setSize(file.getSize());
+        info.setContentType(file.getContentType());
+        info.setUploaderId(uploaderId);
+        fileMapper.insert(info);
+        info.setUrl("/api/files/" + info.getId() + "/download");
+        fileMapper.updateById(info);
 
-        FileInfo entity = new FileInfo();
-        entity.setOriginalName(file.getOriginalFilename());
-        entity.setStoreName(storeName);
-        entity.setPath(storeName);
-        entity.setSize(file.getSize());
-        entity.setContentType(file.getContentType() != null ? file.getContentType() : "application/octet-stream");
-        entity.setUploaderId(uploaderId);
-        fileMapper.insert(entity);
-        entity.setUrl("/api/files/" + entity.getId() + "/download");
-        fileMapper.updateById(entity);
-        return FileVO.from(entity, userNameResolver.nameOf(uploaderId));
+        return FileVO.from(info, userNameResolver.nameOf(uploaderId));
     }
 
     @Override
     public FileDownload download(Long id) {
-        FileInfo file = requireFile(id);
-        Resource resource = storage.loadAsResource(file.getPath());
-        FileDownload download = new FileDownload();
-        download.setResource(resource);
-        download.setOriginalName(file.getOriginalName());
-        download.setSize(file.getSize() == null ? 0 : file.getSize());
-        download.setContentType(file.getContentType());
-        return download;
+        FileInfo info = requireFile(id);
+        return new FileDownload(info.getOriginalName(), info.getContentType(), storageService.load(info.getPath()));
     }
 
     @Override
@@ -104,52 +100,45 @@ public class FileServiceImpl implements FileService {
                 : Math.min(query.getPageSize(), MAX_PAGE_SIZE);
 
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<FileInfo>()
-                .like(StringUtils.hasText(query.getFileName()), FileInfo::getOriginalName, query.getFileName())
+                .like(StringUtils.hasText(query.getName()), FileInfo::getOriginalName, query.getName())
                 .like(StringUtils.hasText(query.getContentType()), FileInfo::getContentType, query.getContentType())
                 .orderByDesc(FileInfo::getId);
 
         Page<FileInfo> page = fileMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
-        Map<Long, String> names = userNameResolver.namesOf(
-                page.getRecords().stream().map(FileInfo::getUploaderId).toList());
+        Map<Long, String> names = userNameResolver.namesOf(page.getRecords().stream().map(FileInfo::getUploaderId).toList());
         List<FileVO> records = page.getRecords().stream()
-                .map(f -> FileVO.from(f, names.get(f.getUploaderId())))
+                .map(r -> FileVO.from(r, names.get(r.getUploaderId())))
                 .toList();
         return PageResult.of(page.getTotal(), records, page.getCurrent(), page.getSize());
     }
 
     @Override
-    @Transactional
     public void delete(Long operatorId, Long id) {
-        FileInfo file = requireFile(id);
-        if (!file.getUploaderId().equals(operatorId)) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "仅上传者可删除该文件");
+        FileInfo info = requireFile(id);
+        boolean isAdmin = permissionService.getRoleCodesByUserId(operatorId).contains("admin");
+        if (!info.getUploaderId().equals(operatorId) && !isAdmin) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅上传者或管理员可删除该文件");
         }
         fileMapper.deleteById(id);
-        storage.delete(file.getPath());
+        storageService.delete(info.getPath());
     }
 
     private FileInfo requireFile(Long id) {
-        FileInfo file = fileMapper.selectById(id);
-        if (file == null) {
+        FileInfo info = fileMapper.selectById(id);
+        if (info == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文件不存在: id=" + id);
         }
-        return file;
+        return info;
     }
 
-    private String extensionOf(String filename) {
-        if (filename == null) {
-            return null;
+    private void validateExtension(String originalName) {
+        if (!StringUtils.hasText(allowedExtensions) || originalName == null) {
+            return;
         }
-        int idx = filename.lastIndexOf('.');
-        if (idx < 0 || idx == filename.length() - 1) {
-            return null;
+        int dot = originalName.lastIndexOf('.');
+        String ext = dot < 0 ? "" : originalName.substring(dot + 1).toLowerCase(Locale.ROOT);
+        if (!allowedExtensions.contains(ext)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "不支持的文件类型: " + ext);
         }
-        return filename.substring(idx + 1).toLowerCase(Locale.ROOT);
-    }
-
-    /** 存储相对路径：yyyy/MM/uuid.ext（按月分目录，避免单目录文件过多） */
-    private String buildStoreName(String extension) {
-        return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"))
-                + "/" + UUID.randomUUID().toString().replace("-", "") + "." + extension;
     }
 }

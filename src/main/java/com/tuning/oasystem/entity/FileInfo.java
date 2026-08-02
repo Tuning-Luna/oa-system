@@ -23,13 +23,13 @@ public class FileInfo {
     /** 原始文件名 */
     private String originalName;
 
-    /** 存储文件名（相对路径） */
+    /** 存储文件名（UUID + 扩展名） */
     private String storeName;
 
-    /** 存储相对路径（磁盘操作用） */
+    /** 相对存储路径（upload-dir 下） */
     private String path;
 
-    /** 访问地址 */
+    /** 下载 URL */
     private String url;
 
     /** 文件大小（字节） */
@@ -43,6 +43,9 @@ public class FileInfo {
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
 
     /** 逻辑删除：0否 1是 */
     @TableLogic
