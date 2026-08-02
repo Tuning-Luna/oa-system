@@ -92,6 +92,16 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- 缓存：Redis（阶段 4 引入，+ commons-pool2 连接池） -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-pool2</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>

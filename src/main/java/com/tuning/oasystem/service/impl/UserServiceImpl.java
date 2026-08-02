@@ -2,6 +2,7 @@ package com.tuning.oasystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tuning.oasystem.common.CacheKeys;
 import com.tuning.oasystem.common.PageResult;
 import com.tuning.oasystem.common.ResultCode;
 import com.tuning.oasystem.dto.UserQuery;
@@ -13,6 +14,7 @@ import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.SysRoleMapper;
 import com.tuning.oasystem.mapper.SysUserMapper;
 import com.tuning.oasystem.mapper.SysUserRoleMapper;
+import com.tuning.oasystem.service.RedisService;
 import com.tuning.oasystem.service.UserService;
 import com.tuning.oasystem.vo.UserVO;
 import org.springframework.stereotype.Service;
@@ -35,13 +37,16 @@ public class UserServiceImpl implements UserService {
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final SysRoleMapper roleMapper;
+    private final RedisService redisService;
 
     public UserServiceImpl(SysUserMapper sysUserMapper,
             SysUserRoleMapper userRoleMapper,
-            SysRoleMapper roleMapper) {
+            SysRoleMapper roleMapper,
+            RedisService redisService) {
         this.sysUserMapper = sysUserMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
+        this.redisService = redisService;
     }
 
     @Override
@@ -63,7 +68,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserVO getById(Long id) {
-        return UserVO.from(requireUser(id));
+        // 热点查询缓存（短 TTL 兜底，写操作即时失效）
+        UserVO cached = redisService.get(CacheKeys.USER_DETAIL + id, UserVO.class);
+        if (cached != null) {
+            return cached;
+        }
+        UserVO vo = UserVO.from(requireUser(id));
+        redisService.set(CacheKeys.USER_DETAIL + id, vo, CacheKeys.TTL_USER_DETAIL);
+        return vo;
     }
 
     @Override
@@ -85,6 +97,7 @@ public class UserServiceImpl implements UserService {
             user.setStatus(request.getStatus());
         }
         sysUserMapper.updateById(user);
+        evictUserCache(id);
         return UserVO.from(sysUserMapper.selectById(id));
     }
 
@@ -94,6 +107,7 @@ public class UserServiceImpl implements UserService {
         sysUserMapper.deleteById(id);
         // 清理用户-角色关联
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+        evictUserCache(id);
     }
 
     @Override
@@ -119,6 +133,14 @@ public class UserServiceImpl implements UserService {
             relation.setRoleId(roleId);
             userRoleMapper.insert(relation);
         }
+        // 角色变更 → 用户权限缓存失效，下次请求实时生效
+        evictUserCache(userId);
+    }
+
+    /** 失效用户相关的全部缓存（详情 + 权限信息） */
+    private void evictUserCache(Long userId) {
+        redisService.delete(CacheKeys.USER_DETAIL + userId);
+        redisService.delete(CacheKeys.USER_INFO + userId);
     }
 
     @Override

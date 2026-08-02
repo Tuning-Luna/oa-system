@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,9 +45,16 @@ public class AuthController {
         return Result.success(authService.login(request));
     }
 
-    @Operation(summary = "当前用户信息", description = "根据 JWT 返回当前登录用户信息（含角色编码与权限标识）")
+    @Operation(summary = "当前用户信息", description = "根据 JWT 返回当前登录用户信息（含角色编码与权限标识），优先读缓存")
     @GetMapping("/me")
     public Result<UserInfoVO> me(@AuthenticationPrincipal LoginUser loginUser) {
         return Result.success(authService.getCurrentUser(loginUser.getUserId()));
+    }
+
+    @Operation(summary = "登出", description = "删除 Redis 登录态缓存，当前 token 立即失效")
+    @PostMapping("/logout")
+    public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        authService.logout(authorization);
+        return Result.success();
     }
 }

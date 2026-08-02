@@ -14,9 +14,12 @@ public interface AuthService {
     /** 注册：用户名唯一性校验 + BCrypt 加密存储 */
     UserVO register(RegisterRequest request);
 
-    /** 登录：校验账号密码，签发 JWT */
+    /** 登录：校验账号密码，签发 JWT 并写入 Redis 登录态 */
     LoginResponse login(LoginRequest request);
 
-    /** 按用户 ID 返回当前用户信息（含角色与权限） */
+    /** 登出：删除 Redis 登录态缓存，token 立即失效 */
+    void logout(String authorization);
+
+    /** 按用户 ID 返回当前用户信息（含角色与权限），优先读缓存 */
     UserInfoVO getCurrentUser(Long userId);
 }

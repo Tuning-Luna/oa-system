@@ -1,6 +1,7 @@
 package com.tuning.oasystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.tuning.oasystem.common.CacheKeys;
 import com.tuning.oasystem.common.ResultCode;
 import com.tuning.oasystem.dto.MenuRequest;
 import com.tuning.oasystem.entity.SysMenu;
@@ -9,11 +10,13 @@ import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.SysMenuMapper;
 import com.tuning.oasystem.mapper.SysRoleMenuMapper;
 import com.tuning.oasystem.service.MenuService;
+import com.tuning.oasystem.service.RedisService;
 import com.tuning.oasystem.vo.MenuVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,19 +31,30 @@ public class MenuServiceImpl implements MenuService {
 
     private final SysMenuMapper menuMapper;
     private final SysRoleMenuMapper roleMenuMapper;
+    private final RedisService redisService;
 
-    public MenuServiceImpl(SysMenuMapper menuMapper, SysRoleMenuMapper roleMenuMapper) {
+    public MenuServiceImpl(SysMenuMapper menuMapper,
+            SysRoleMenuMapper roleMenuMapper,
+            RedisService redisService) {
         this.menuMapper = menuMapper;
         this.roleMenuMapper = roleMenuMapper;
+        this.redisService = redisService;
     }
 
     @Override
     public List<MenuVO> tree() {
+        // 热点缓存：菜单低频变更，命中直接返回
+        MenuVO[] cached = redisService.get(CacheKeys.MENU_TREE, MenuVO[].class);
+        if (cached != null) {
+            return new ArrayList<>(Arrays.asList(cached));
+        }
         List<SysMenu> menus = menuMapper.selectList(
                 new LambdaQueryWrapper<SysMenu>()
                         .eq(SysMenu::getStatus, 1)
                         .orderByAsc(SysMenu::getSort));
-        return buildTree(menus.stream().map(MenuVO::from).toList());
+        List<MenuVO> tree = buildTree(menus.stream().map(MenuVO::from).toList());
+        redisService.set(CacheKeys.MENU_TREE, tree.toArray(new MenuVO[0]), CacheKeys.TTL_MENU_TREE);
+        return tree;
     }
 
     @Override
@@ -54,6 +68,7 @@ public class MenuServiceImpl implements MenuService {
         SysMenu menu = new SysMenu();
         applyRequest(menu, request);
         menuMapper.insert(menu);
+        evictMenuTreeCache();
         return MenuVO.from(menuMapper.selectById(menu.getId()));
     }
 
@@ -68,6 +83,7 @@ public class MenuServiceImpl implements MenuService {
         menu.setId(id);
         applyRequest(menu, request);
         menuMapper.updateById(menu);
+        evictMenuAndPermissionCache();
         return MenuVO.from(requireMenu(id));
     }
 
@@ -83,6 +99,7 @@ public class MenuServiceImpl implements MenuService {
         menuMapper.deleteById(id);
         // 清理角色-菜单关联
         roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getMenuId, id));
+        evictMenuAndPermissionCache();
     }
 
     private void applyRequest(SysMenu menu, MenuRequest request) {
@@ -95,6 +112,17 @@ public class MenuServiceImpl implements MenuService {
         menu.setPerms(request.getPerms());
         menu.setSort(request.getSort() == null ? 0 : request.getSort());
         menu.setStatus(request.getStatus() == null ? 1 : request.getStatus());
+    }
+
+    /** 新增菜单：仅菜单树缓存失效 */
+    private void evictMenuTreeCache() {
+        redisService.delete(CacheKeys.MENU_TREE);
+    }
+
+    /** 修改/删除菜单：菜单树 + 全部用户权限缓存失效（perms 可能变化） */
+    private void evictMenuAndPermissionCache() {
+        redisService.delete(CacheKeys.MENU_TREE);
+        redisService.deleteByPattern(CacheKeys.USER_INFO + "*");
     }
 
     private void validateParent(Long parentId) {

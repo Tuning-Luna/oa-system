@@ -377,9 +377,30 @@ com.tuning.oasystem
    - 缓存生效测试：第二次查询命中缓存（不触发 Mapper 查询，用 spy 断言调用次数）。
 
 **完成标准（Checkpoint）**：
-- [ ] 编译 + 测试通过（Redis 启动状态）。
-- [ ] 说明文档（dev.md 本阶段）记录缓存 key 规范与失效策略。
-- [ ] 输出阶段报告，**停止等待确认**。
+- [x] 编译 + 测试通过（Redis 启动状态）。
+- [x] 说明文档（dev.md 本阶段）记录缓存 key 规范与失效策略。
+- [x] 输出阶段报告，**停止等待确认**。
+
+#### 阶段 4 缓存 key 规范与失效策略（已实施）
+
+**序列化方案**：`RedisTemplate<String,Object>` key/value 均用 String 序列化，值存 JSON 字符串；对象↔JSON 由 `RedisService` 借助 Jackson 3 `ObjectMapper` 互转（规避 Spring Data Redis 4 对 Jackson 2/3 序列化器歧义）。
+
+**Key 规范**（统一前缀 `oa:`，冒号分隔业务域）：
+
+| Key | 值 | TTL | 用途 |
+|---|---|---|---|
+| `oa:auth:token:{token}` | 用户ID | JWT 有效期（30 天） | 登录态；登出/被踢删除后 token 立即失效 |
+| `oa:user:info:{userId}` | UserInfoVO | 30 天 | 鉴权过滤器按用户还原主体 + `/me` 快路径 |
+| `oa:user:detail:{userId}` | UserVO | 10 分钟 | 用户详情热点缓存 |
+| `oa:menu:tree` | MenuVO[] | 30 分钟 | 菜单树热点缓存 |
+
+**失效策略（写后失效）**：
+
+- 登出 → 删 `oa:auth:token:{token}`。
+- 用户修改 / 删除 / 分配角色 → 删该用户 `oa:user:info:{id}` 与 `oa:user:detail:{id}`。
+- 角色修改 / 删除 / 分配菜单 → 删该角色下所有用户的 `oa:user:info:{id}`（改权限实时生效）。
+- 菜单修改 / 删除 → 删菜单树 + 全部 `oa:user:info:*`；菜单新增 → 仅删菜单树。
+- 兜底：短 TTL（detail 10min / menu 30min）+ `POST /api/cache/evict` 运维手动清缓存。
 
 ---
 

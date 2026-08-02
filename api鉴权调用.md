@@ -71,3 +71,23 @@ curl -X PUT http://localhost:8080/api/approvals/reimburse/{id}/cancel  -H "Autho
 
 # 审批记录（businessType：1请假 2报销）
 curl "http://localhost:8080/api/approvals/records?businessType=1&businessId={id}" -H "Authorization: Bearer <token>"
+
+# ============ 阶段 4：Redis 缓存 ============
+# 登录成功自动缓存：oa:auth:token:{token}（登录态）、oa:user:info:{userId}（用户+角色+权限）
+# 鉴权过滤器优先读缓存；角色/菜单变更后自动失效，改权限实时生效。
+
+# 登出（删除 token 登录态缓存，token 立即失效）
+curl -X POST http://localhost:8080/api/auth/logout -H "Authorization: Bearer <token>"
+# 登出后同一 token 访问受保护接口返回 401
+
+# 清除缓存（供运维/测试；key 含 * 按模式清除）
+curl -X POST http://localhost:8080/api/cache/evict -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{"key":"oa:menu:tree"}'          # 精确 key
+curl -X POST http://localhost:8080/api/cache/evict -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{"key":"oa:user:info:*"}'        # 模式清除
+
+# 缓存 key 规范（详见 dev.md 阶段 4）：
+#   oa:auth:token:{token}  登录态（登出即失效）
+#   oa:user:info:{userId}  用户信息+角色+权限（鉴权/me）
+#   oa:user:detail:{userId} 用户详情热点缓存
+#   oa:menu:tree            菜单树热点缓存

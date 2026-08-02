@@ -2,6 +2,7 @@ package com.tuning.oasystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tuning.oasystem.common.CacheKeys;
 import com.tuning.oasystem.common.PageResult;
 import com.tuning.oasystem.common.ResultCode;
 import com.tuning.oasystem.dto.RoleQuery;
@@ -13,6 +14,7 @@ import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.SysRoleMapper;
 import com.tuning.oasystem.mapper.SysRoleMenuMapper;
 import com.tuning.oasystem.mapper.SysUserRoleMapper;
+import com.tuning.oasystem.service.RedisService;
 import com.tuning.oasystem.service.RoleService;
 import com.tuning.oasystem.vo.RoleVO;
 import org.springframework.stereotype.Service;
@@ -35,13 +37,16 @@ public class RoleServiceImpl implements RoleService {
     private final SysRoleMapper roleMapper;
     private final SysRoleMenuMapper roleMenuMapper;
     private final SysUserRoleMapper userRoleMapper;
+    private final RedisService redisService;
 
     public RoleServiceImpl(SysRoleMapper roleMapper,
             SysRoleMenuMapper roleMenuMapper,
-            SysUserRoleMapper userRoleMapper) {
+            SysUserRoleMapper userRoleMapper,
+            RedisService redisService) {
         this.roleMapper = roleMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.userRoleMapper = userRoleMapper;
+        this.redisService = redisService;
     }
 
     @Override
@@ -104,6 +109,7 @@ public class RoleServiceImpl implements RoleService {
         role.setDescription(request.getDescription());
         role.setStatus(request.getStatus());
         roleMapper.updateById(role);
+        evictAffectedUsers(id);
         return RoleVO.from(requireRole(id));
     }
 
@@ -111,6 +117,7 @@ public class RoleServiceImpl implements RoleService {
     @Transactional
     public void delete(Long id) {
         requireRole(id);
+        evictAffectedUsers(id);
         roleMapper.deleteById(id);
         // 物理清理关联，避免角色逻辑删除后残留权限
         roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
@@ -133,6 +140,8 @@ public class RoleServiceImpl implements RoleService {
             relation.setMenuId(menuId);
             roleMenuMapper.insert(relation);
         }
+        // 角色权限变更 → 挂在该角色下的用户权限缓存失效，实时生效
+        evictAffectedUsers(roleId);
     }
 
     @Override
@@ -143,6 +152,14 @@ public class RoleServiceImpl implements RoleService {
                 .stream()
                 .map(SysRoleMenu::getMenuId)
                 .toList();
+    }
+
+    /** 失效挂在该角色下所有用户的权限缓存（改权限后实时生效） */
+    private void evictAffectedUsers(Long roleId) {
+        for (SysUserRole relation : userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, roleId))) {
+            redisService.delete(CacheKeys.USER_INFO + relation.getUserId());
+        }
     }
 
     private boolean existsCode(String code, Long excludeId) {

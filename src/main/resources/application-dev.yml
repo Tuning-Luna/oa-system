@@ -7,6 +7,19 @@ spring:
     username: root
     password: "123456"
 
+  # Redis（阶段 4 接入）：本地默认无密码；生产用环境变量覆盖
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 0
+
 mybatis-plus:
   configuration:
     # 下划线字段自动映射为驼峰（user_name -> userName）
@@ -20,8 +33,3 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
-
-# 阶段 4（Redis 接入）启用：
-#   spring.data.redis.host: localhost
-#   spring.data.redis.port: 6379
-#   spring.data.redis.password:

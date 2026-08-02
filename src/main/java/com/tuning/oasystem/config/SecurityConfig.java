@@ -30,8 +30,9 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider,
-            UserDetailsServiceImpl userDetailsService) {
-        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
+            UserDetailsServiceImpl userDetailsService,
+            com.tuning.oasystem.service.RedisService redisService) {
+        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService, redisService);
     }
 
     @Bean

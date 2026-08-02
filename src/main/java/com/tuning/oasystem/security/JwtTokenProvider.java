@@ -65,4 +65,9 @@ public class JwtTokenProvider {
             return false;
         }
     }
+
+    /** Token 有效期（秒），供登录态缓存 TTL 对齐 */
+    public long getExpirationSeconds() {
+        return expirationSeconds;
+    }
 }
