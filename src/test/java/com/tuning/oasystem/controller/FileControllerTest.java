@@ -6,7 +6,6 @@ import com.tuning.oasystem.entity.FileInfo;
 import com.tuning.oasystem.entity.SysUser;
 import com.tuning.oasystem.mapper.FileInfoMapper;
 import com.tuning.oasystem.mapper.SysUserMapper;
-import com.tuning.oasystem.service.StorageService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,9 +50,6 @@ class FileControllerTest {
     @Autowired
     private FileInfoMapper fileMapper;
 
-    @Autowired
-    private StorageService storageService;
-
     @Value("${file.upload-dir}")
     private String uploadDir;
 
@@ -86,7 +82,8 @@ class FileControllerTest {
     private Long registerAndGetId(String username, String password) throws Exception {
         createdUsernames.add(username);
         String body = "{\"username\":\"" + username + "\",\"password\":\"" + password + "\",\"nickname\":\"测试\"}";
-        MvcResult result = mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+        MvcResult result = mockMvc
+                .perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andReturn();
         return ((Number) JsonPath.read(result.getResponse().getContentAsString(), "$.data.id")).longValue();
@@ -94,7 +91,8 @@ class FileControllerTest {
 
     private String loginAndGetToken(String username, String password) throws Exception {
         String body = "{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}";
-        MvcResult result = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+        MvcResult result = mockMvc
+                .perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andReturn();
         return JsonPath.read(result.getResponse().getContentAsString(), "$.data.token");
@@ -103,8 +101,8 @@ class FileControllerTest {
     private Long uploadFile(String token, String name, String contentType, byte[] content) throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", name, contentType, content);
         MvcResult result = mockMvc.perform(multipart("/api/files/upload")
-                        .file(file)
-                        .header("Authorization", "Bearer " + token))
+                .file(file)
+                .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andReturn();
@@ -127,7 +125,7 @@ class FileControllerTest {
 
         // B（非上传者）可下载（登录用户共享）
         MvcResult download = mockMvc.perform(get("/api/files/" + fileId + "/download")
-                        .header("Authorization", "Bearer " + tokenB))
+                .header("Authorization", "Bearer " + tokenB))
                 .andExpect(status().isOk())
                 .andReturn();
         assertArrayEquals(content, download.getResponse().getContentAsByteArray());
