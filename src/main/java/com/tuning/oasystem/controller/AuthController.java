@@ -6,6 +6,7 @@ import com.tuning.oasystem.dto.RegisterRequest;
 import com.tuning.oasystem.security.LoginUser;
 import com.tuning.oasystem.service.AuthService;
 import com.tuning.oasystem.vo.LoginResponse;
+import com.tuning.oasystem.vo.UserInfoVO;
 import com.tuning.oasystem.vo.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,9 +44,9 @@ public class AuthController {
         return Result.success(authService.login(request));
     }
 
-    @Operation(summary = "当前用户信息", description = "根据 JWT 返回当前登录用户信息")
+    @Operation(summary = "当前用户信息", description = "根据 JWT 返回当前登录用户信息（含角色编码与权限标识）")
     @GetMapping("/me")
-    public Result<UserVO> me(@AuthenticationPrincipal LoginUser loginUser) {
+    public Result<UserInfoVO> me(@AuthenticationPrincipal LoginUser loginUser) {
         return Result.success(authService.getCurrentUser(loginUser.getUserId()));
     }
 }

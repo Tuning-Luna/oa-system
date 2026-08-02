@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 认证接口集成测试（需 MySQL 运行，完整安全过滤器链）：
- * 注册→登录→带 token 访问受保护接口 200；无 token 401；密码错误 401；参数校验 400。
+ * 注册→登录→/me 200；无角色用户访问受保护接口 403（阶段 3 起 RBAC 收紧）；无 token 401；参数校验 400。
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,23 +65,32 @@ class AuthControllerTest {
     }
 
     @Test
-    void registerLoginThenAccessProtectedShouldReturn200() throws Exception {
+    void registerLoginThenMeShouldReturn200() throws Exception {
         String username = "ctl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         createdUsernames.add(username);
 
         registerUser(username, "Passw0rd123");
         String token = loginAndGetToken(username, "Passw0rd123");
 
-        // 带 token 访问当前用户接口
+        // 带 token 访问当前用户接口（任何登录用户可访问）
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.username").value(username));
+                .andExpect(jsonPath("$.data.user.username").value(username));
+    }
 
-        // 带 token 访问用户列表接口
+    @Test
+    void freshUserWithoutRoleAccessProtectedShouldReturn403() throws Exception {
+        String username = "ctl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        createdUsernames.add(username);
+
+        registerUser(username, "Passw0rd123");
+        String token = loginAndGetToken(username, "Passw0rd123");
+
+        // 阶段 3 收紧：未分配角色的用户访问用户管理接口返回 403
         mockMvc.perform(get("/api/users").header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
     }
 
     @Test

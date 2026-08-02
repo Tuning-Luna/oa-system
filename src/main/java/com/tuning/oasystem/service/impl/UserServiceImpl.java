@@ -6,12 +6,17 @@ import com.tuning.oasystem.common.PageResult;
 import com.tuning.oasystem.common.ResultCode;
 import com.tuning.oasystem.dto.UserQuery;
 import com.tuning.oasystem.dto.UserUpdateRequest;
+import com.tuning.oasystem.entity.SysRole;
 import com.tuning.oasystem.entity.SysUser;
+import com.tuning.oasystem.entity.SysUserRole;
 import com.tuning.oasystem.exception.BusinessException;
+import com.tuning.oasystem.mapper.SysRoleMapper;
 import com.tuning.oasystem.mapper.SysUserMapper;
+import com.tuning.oasystem.mapper.SysUserRoleMapper;
 import com.tuning.oasystem.service.UserService;
 import com.tuning.oasystem.vo.UserVO;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -28,9 +33,15 @@ public class UserServiceImpl implements UserService {
     private static final long MAX_PAGE_SIZE = 100;
 
     private final SysUserMapper sysUserMapper;
+    private final SysUserRoleMapper userRoleMapper;
+    private final SysRoleMapper roleMapper;
 
-    public UserServiceImpl(SysUserMapper sysUserMapper) {
+    public UserServiceImpl(SysUserMapper sysUserMapper,
+            SysUserRoleMapper userRoleMapper,
+            SysRoleMapper roleMapper) {
         this.sysUserMapper = sysUserMapper;
+        this.userRoleMapper = userRoleMapper;
+        this.roleMapper = roleMapper;
     }
 
     @Override
@@ -81,6 +92,43 @@ public class UserServiceImpl implements UserService {
     public void delete(Long id) {
         requireUser(id);
         sysUserMapper.deleteById(id);
+        // 清理用户-角色关联
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+    }
+
+    @Override
+    @Transactional
+    public void assignRoles(Long userId, List<Long> roleIds) {
+        requireUser(userId);
+        if (roleIds == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "角色 ID 列表不能为空");
+        }
+        List<Long> distinctIds = roleIds.stream().distinct().toList();
+        if (!distinctIds.isEmpty()) {
+            Long existing = roleMapper.selectCount(
+                    new LambdaQueryWrapper<SysRole>().in(SysRole::getId, distinctIds));
+            if (existing == null || existing != distinctIds.size()) {
+                throw new BusinessException(ResultCode.BAD_REQUEST, "存在无效的角色 ID");
+            }
+        }
+        // 全量替换：先删旧关联，再插入新关联
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        for (Long roleId : distinctIds) {
+            SysUserRole relation = new SysUserRole();
+            relation.setUserId(userId);
+            relation.setRoleId(roleId);
+            userRoleMapper.insert(relation);
+        }
+    }
+
+    @Override
+    public List<Long> getRoleIds(Long userId) {
+        requireUser(userId);
+        return userRoleMapper.selectList(
+                        new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId))
+                .stream()
+                .map(SysUserRole::getRoleId)
+                .toList();
     }
 
     private SysUser requireUser(Long id) {

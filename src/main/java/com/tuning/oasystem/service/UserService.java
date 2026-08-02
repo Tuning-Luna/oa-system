@@ -5,6 +5,8 @@ import com.tuning.oasystem.dto.UserQuery;
 import com.tuning.oasystem.dto.UserUpdateRequest;
 import com.tuning.oasystem.vo.UserVO;
 
+import java.util.List;
+
 /**
  * 用户管理服务
  */
@@ -21,4 +23,10 @@ public interface UserService {
 
     /** 删除用户（逻辑删除） */
     void delete(Long id);
+
+    /** 给用户分配角色（全量替换） */
+    void assignRoles(Long userId, List<Long> roleIds);
+
+    /** 用户当前角色 ID 列表 */
+    List<Long> getRoleIds(Long userId);
 }

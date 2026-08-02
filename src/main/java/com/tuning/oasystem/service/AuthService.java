@@ -3,6 +3,7 @@ package com.tuning.oasystem.service;
 import com.tuning.oasystem.dto.LoginRequest;
 import com.tuning.oasystem.dto.RegisterRequest;
 import com.tuning.oasystem.vo.LoginResponse;
+import com.tuning.oasystem.vo.UserInfoVO;
 import com.tuning.oasystem.vo.UserVO;
 
 /**
@@ -16,6 +17,6 @@ public interface AuthService {
     /** 登录：校验账号密码，签发 JWT */
     LoginResponse login(LoginRequest request);
 
-    /** 按用户 ID 返回当前用户信息 */
-    UserVO getCurrentUser(Long userId);
+    /** 按用户 ID 返回当前用户信息（含角色与权限） */
+    UserInfoVO getCurrentUser(Long userId);
 }

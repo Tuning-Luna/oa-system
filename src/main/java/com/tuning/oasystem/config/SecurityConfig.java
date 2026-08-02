@@ -8,6 +8,7 @@ import com.tuning.oasystem.security.UserDetailsServiceImpl;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -20,9 +21,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * Spring Security 配置（Spring Security 7 / Lambda DSL）。
  * <p>
  * 无状态 JWT 方案：关闭 CSRF、禁用 Session；放行登录/注册/健康检查/Swagger，其余接口需认证。
+ * {@code @EnableMethodSecurity} 开启方法级鉴权（阶段 3 起接口用 @PreAuthorize 控制细粒度权限）。
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean

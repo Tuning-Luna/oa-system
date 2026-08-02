@@ -9,7 +9,9 @@ import com.tuning.oasystem.exception.BusinessException;
 import com.tuning.oasystem.mapper.SysUserMapper;
 import com.tuning.oasystem.security.JwtTokenProvider;
 import com.tuning.oasystem.service.AuthService;
+import com.tuning.oasystem.service.PermissionService;
 import com.tuning.oasystem.vo.LoginResponse;
+import com.tuning.oasystem.vo.UserInfoVO;
 import com.tuning.oasystem.vo.UserVO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,15 +28,18 @@ public class AuthServiceImpl implements AuthService {
     private final SysUserMapper sysUserMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final PermissionService permissionService;
     private final long expirationSeconds;
 
     public AuthServiceImpl(SysUserMapper sysUserMapper,
             PasswordEncoder passwordEncoder,
             JwtTokenProvider jwtTokenProvider,
+            PermissionService permissionService,
             @Value("${jwt.expiration}") long expirationSeconds) {
         this.sysUserMapper = sysUserMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.permissionService = permissionService;
         this.expirationSeconds = expirationSeconds;
     }
 
@@ -72,11 +77,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserVO getCurrentUser(Long userId) {
+    public UserInfoVO getCurrentUser(Long userId) {
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "用户不存在或已被删除");
         }
-        return UserVO.from(user);
+        return UserInfoVO.of(
+                UserVO.from(user),
+                permissionService.getRoleCodesByUserId(userId),
+                permissionService.getPermissionsByUserId(userId));
     }
 }

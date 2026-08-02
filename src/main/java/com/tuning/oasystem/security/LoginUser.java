@@ -10,7 +10,8 @@ import java.util.Collections;
 /**
  * 认证主体：包装 {@link SysUser}，供 Spring Security 使用。
  * <p>
- * 阶段 2 尚未引入角色/权限，authorities 为空集合；阶段 3 的 RBAC 在此补充。
+ * authorities 在 {@link UserDetailsServiceImpl} 中按 RBAC 聚合生成：
+ * 角色编码以 {@code ROLE_xxx} 前缀（支持 hasRole），权限标识原样（支持 hasAuthority）。
  */
 public class LoginUser implements UserDetails {
 
@@ -18,8 +19,11 @@ public class LoginUser implements UserDetails {
 
     private final SysUser user;
 
-    public LoginUser(SysUser user) {
+    private final Collection<? extends GrantedAuthority> authorities;
+
+    public LoginUser(SysUser user, Collection<? extends GrantedAuthority> authorities) {
         this.user = user;
+        this.authorities = authorities != null ? authorities : Collections.emptyList();
     }
 
     public SysUser getUser() {
@@ -32,7 +36,7 @@ public class LoginUser implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.emptyList();
+        return authorities;
     }
 
     @Override
