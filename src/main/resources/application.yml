@@ -19,7 +19,15 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
 
+# JWT 配置
+jwt:
+  # HS256 签名密钥（≥ 32 字节；生产环境用环境变量 JWT_SECRET 覆盖，勿提交真实密钥）
+  secret: ${JWT_SECRET:bcbf01e2d2713e9451d2d89aa2756eb25a611aec0c7a727823fb378c44a999cf6623722f4ff919bc74cea0f7965425d9}
+  # Token 有效期（秒）：30 天
+  expiration: 2592000
+
 logging:
   level:
     root: info
-    com.tuning.oasystem: info
+    # 键含点号，需加引号转义（否则部分 IDE/校验器会告警）
+    '[com.tuning.oasystem]': info
