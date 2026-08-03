@@ -116,6 +116,19 @@ export interface RoleMenuRequest {
   menuIds: number[]
 }
 
+/** 菜单新增/修改请求 */
+export interface MenuRequest {
+  parentId: number
+  name: string
+  path?: string
+  component?: string
+  icon?: string
+  type: number
+  perms?: string
+  sort?: number
+  status?: number
+}
+
 /** 菜单信息（MenuVO，含子菜单树） */
 export interface MenuVO {
   id: number
