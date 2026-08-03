@@ -222,3 +222,21 @@ export interface ReimburseVO {
   createTime: string
   updateTime: string
 }
+
+/** 通知分页查询参数 */
+export interface MessageQuery {
+  pageNum: number
+  pageSize: number
+  readFlag?: number
+}
+
+/** 系统通知（SysMessageVO） */
+export interface SysMessageVO {
+  id: number
+  receiverId: number
+  type: string
+  title: string
+  content: string
+  readFlag: number
+  createTime: string
+}

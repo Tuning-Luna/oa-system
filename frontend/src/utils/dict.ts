@@ -44,3 +44,18 @@ export const approvalStatusOptions = [
     value: Number(value),
   })),
 ]
+
+/** 通知类型 tag 映射（后端 type 为字符串，如 APPROVAL） */
+export const messageTypeDict: Record<string, { label: string; tagType: TagType }> = {
+  APPROVAL: { label: '审批通知', tagType: 'primary' },
+}
+
+/** 通知类型名称（未知类型原样返回） */
+export function messageTypeLabel(type: string): string {
+  return messageTypeDict[type]?.label ?? type
+}
+
+/** 通知类型 tag 颜色 */
+export function messageTypeTag(type: string): TagType {
+  return messageTypeDict[type]?.tagType ?? 'info'
+}
