@@ -94,3 +94,41 @@ export interface RoleVO {
   createTime: string
   updateTime: string
 }
+
+/** 角色分页查询参数 */
+export interface RoleQuery {
+  pageNum: number
+  pageSize: number
+  name?: string
+  status?: number
+}
+
+/** 角色新增/修改请求 */
+export interface RoleRequest {
+  name: string
+  code: string
+  description?: string
+  status?: number
+}
+
+/** 给角色分配菜单请求（全量替换） */
+export interface RoleMenuRequest {
+  menuIds: number[]
+}
+
+/** 菜单信息（MenuVO，含子菜单树） */
+export interface MenuVO {
+  id: number
+  parentId: number
+  name: string
+  path: string | null
+  component: string | null
+  icon: string | null
+  type: number
+  perms: string | null
+  sort: number
+  status: number
+  createTime: string
+  updateTime: string
+  children: MenuVO[]
+}
