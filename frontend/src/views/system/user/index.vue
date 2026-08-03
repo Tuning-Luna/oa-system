@@ -27,7 +27,7 @@
     <!-- 列表 -->
     <el-card shadow="never">
       <div class="toolbar">
-        <el-button type="primary" v-permission="'system:user:add'" @click="openAdd">
+        <el-button type="primary" v-permission="'system:user:add'" @click="addVisible = true">
           新增用户
         </el-button>
       </div>
@@ -71,85 +71,29 @@
       />
     </el-card>
 
-    <!-- 新增用户弹窗 -->
-    <el-dialog v-model="addVisible" title="新增用户" width="520px" :close-on-click-modal="false" @closed="resetAddForm">
-      <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="80px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="addForm.username" placeholder="3-20 位字母、数字、下划线" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="addForm.password" type="password" show-password placeholder="8-20 位，需含字母和数字" />
-        </el-form-item>
-        <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="addForm.nickname" placeholder="选填，最长 50 字符" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="addForm.email" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="手机号" prop="phone">
-          <el-input v-model="addForm.phone" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="addForm.roleIds" multiple placeholder="可选，注册后立即分配" style="width: 100%">
-            <el-option v-for="role in roleOptions" :key="role.id" :label="`${role.name}（${role.code}）`" :value="role.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addLoading" @click="handleAdd">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 编辑用户弹窗 -->
-    <el-dialog v-model="editVisible" title="编辑用户" width="520px" :close-on-click-modal="false">
-      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="80px">
-        <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="editForm.nickname" placeholder="选填，最长 50 字符" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="editForm.email" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="手机号" prop="phone">
-          <el-input v-model="editForm.phone" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="头像" prop="avatar">
-          <el-input v-model="editForm.avatar" placeholder="选填，头像 URL" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="editLoading" @click="handleEdit">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 分配角色弹窗 -->
-    <el-dialog v-model="roleVisible" title="分配角色" width="480px" :close-on-click-modal="false">
-      <p class="role-tip">为用户「{{ currentUsername }}」分配角色（全量替换）</p>
-      <el-select v-model="selectedRoles" multiple placeholder="选择角色" style="width: 100%">
-        <el-option v-for="role in roleOptions" :key="role.id" :label="`${role.name}（${role.code}）`" :value="role.id" />
-      </el-select>
-      <template #footer>
-        <el-button @click="roleVisible = false">取消</el-button>
-        <el-button type="primary" :loading="roleLoading" @click="handleAssignRole">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 弹窗组件：新增 / 编辑 / 分配角色 -->
+    <AddUserDialog v-model="addVisible" :role-options="roleOptions" @success="fetchList" />
+    <EditUserDialog v-model="editVisible" :user="editingUser" @success="fetchList" />
+    <AssignRoleDialog
+      v-model="roleVisible"
+      :user-id="currentUserId"
+      :username="currentUsername"
+      :role-options="roleOptions"
+      @success="fetchList"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { register } from '@/api/auth'
-import { assignRoles, deleteUser, getUserRoleIds, pageUsers, updateUser } from '@/api/user'
+import { deleteUser, pageUsers } from '@/api/user'
 import { listAllRoles } from '@/api/role'
 import type { RoleVO, UserVO } from '@/types'
 import { commonStatusLabel, commonStatusTag } from '@/utils/dict'
-import { emailRules, nicknameRules, passwordRules, phoneRules, usernameRules } from '@/utils/validators'
+import AddUserDialog from './components/AddUserDialog.vue'
+import EditUserDialog from './components/EditUserDialog.vue'
+import AssignRoleDialog from './components/AssignRoleDialog.vue'
 
 // ==================== 列表 ====================
 const loading = ref(false)
@@ -194,119 +138,26 @@ function handleSizeChange(): void {
   fetchList()
 }
 
-// ==================== 角色选项 ====================
+// ==================== 角色选项（新增/分配角色共用） ====================
 const roleOptions = ref<RoleVO[]>([])
 
-// ==================== 新增用户 ====================
+// ==================== 弹窗状态 ====================
 const addVisible = ref(false)
-const addLoading = ref(false)
-const addFormRef = ref<FormInstance>()
-const addForm = reactive({
-  username: '',
-  password: '',
-  nickname: '',
-  email: '',
-  phone: '',
-  roleIds: [] as number[],
-})
-
-const addRules: FormRules = {
-  username: usernameRules,
-  password: passwordRules,
-  nickname: nicknameRules,
-  email: emailRules,
-  phone: phoneRules,
-}
-
-function openAdd(): void {
-  addVisible.value = true
-}
-
-async function handleAdd(): Promise<void> {
-  const valid = await addFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  addLoading.value = true
-  try {
-    // 后端无管理员建号接口，新增复用公开注册接口 + 分配角色
-    const user = await register({
-      username: addForm.username,
-      password: addForm.password,
-      nickname: addForm.nickname || undefined,
-      email: addForm.email || undefined,
-      phone: addForm.phone || undefined,
-    })
-    if (addForm.roleIds.length > 0) {
-      await assignRoles(user.id, addForm.roleIds)
-    }
-    ElMessage.success('新增用户成功')
-    addVisible.value = false
-    fetchList()
-  } catch {
-    // 失败提示由 request 拦截器统一处理
-  } finally {
-    addLoading.value = false
-  }
-}
-
-function resetAddForm(): void {
-  addFormRef.value?.clearValidate()
-  addForm.username = ''
-  addForm.password = ''
-  addForm.nickname = ''
-  addForm.email = ''
-  addForm.phone = ''
-  addForm.roleIds = []
-}
-
-// ==================== 编辑用户 ====================
 const editVisible = ref(false)
-const editLoading = ref(false)
-const editFormRef = ref<FormInstance>()
-const editForm = reactive({
-  id: 0,
-  nickname: '',
-  email: '',
-  phone: '',
-  avatar: '',
-  status: 1,
-})
-
-const editRules: FormRules = {
-  nickname: nicknameRules,
-  email: emailRules,
-  phone: phoneRules,
-}
+const roleVisible = ref(false)
+const editingUser = ref<UserVO | null>(null)
+const currentUserId = ref(0)
+const currentUsername = ref('')
 
 function openEdit(row: UserVO): void {
-  editForm.id = row.id
-  editForm.nickname = row.nickname ?? ''
-  editForm.email = row.email ?? ''
-  editForm.phone = row.phone ?? ''
-  editForm.avatar = row.avatar ?? ''
-  editForm.status = row.status
+  editingUser.value = row
   editVisible.value = true
 }
 
-async function handleEdit(): Promise<void> {
-  const valid = await editFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  editLoading.value = true
-  try {
-    await updateUser(editForm.id, {
-      nickname: editForm.nickname || undefined,
-      email: editForm.email || undefined,
-      phone: editForm.phone || undefined,
-      avatar: editForm.avatar || undefined,
-      status: editForm.status,
-    })
-    ElMessage.success('修改成功')
-    editVisible.value = false
-    fetchList()
-  } catch {
-    // 拦截器已提示
-  } finally {
-    editLoading.value = false
-  }
+function openAssignRole(row: UserVO): void {
+  currentUserId.value = row.id
+  currentUsername.value = row.username
+  roleVisible.value = true
 }
 
 // ==================== 删除用户 ====================
@@ -329,38 +180,6 @@ async function handleDelete(row: UserVO): Promise<void> {
     fetchList()
   } catch {
     // 拦截器已提示
-  }
-}
-
-// ==================== 分配角色 ====================
-const roleVisible = ref(false)
-const roleLoading = ref(false)
-const currentUserId = ref(0)
-const currentUsername = ref('')
-const selectedRoles = ref<number[]>([])
-
-async function openAssignRole(row: UserVO): Promise<void> {
-  currentUserId.value = row.id
-  currentUsername.value = row.username
-  selectedRoles.value = []
-  roleVisible.value = true
-  try {
-    selectedRoles.value = await getUserRoleIds(row.id)
-  } catch {
-    // 拦截器已提示
-  }
-}
-
-async function handleAssignRole(): Promise<void> {
-  roleLoading.value = true
-  try {
-    await assignRoles(currentUserId.value, selectedRoles.value)
-    ElMessage.success('分配角色成功')
-    roleVisible.value = false
-  } catch {
-    // 拦截器已提示
-  } finally {
-    roleLoading.value = false
   }
 }
 
@@ -388,11 +207,6 @@ onMounted(() => {
   .pagination {
     margin-top: 16px;
     justify-content: flex-end;
-  }
-
-  .role-tip {
-    margin: 0 0 12px;
-    color: #606266;
   }
 }
 </style>
