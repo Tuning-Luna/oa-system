@@ -1,12 +1,16 @@
 /**
- * 路由配置 + 全局登录守卫
+ * 路由配置 + 全局登录/权限守卫
  *
- * F1 阶段：仅常量路由（登录/注册/404/布局占位）。
- * 动态路由注入在 F2 阶段实现（业务路由 + 按权限过滤的系统管理路由）。
+ * 动态路由方案：
+ * 1. 常量路由：登录/注册/404 + Layout 壳（无子路由）
+ * 2. 登录后拉取 /api/auth/me → 根据 permissions 过滤出可访问路由（业务路由全量 +
+ *    系统管理按权限过滤）→ addRoute 注入为 Layout 子路由 → 重新导航避免刷新 404
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { usePermissionStore } from '@/stores/permission'
+import { dashboardRoute } from './routes'
 
 const Layout = () => import('@/layout/index.vue')
 
@@ -31,17 +35,13 @@ export const constantRoutes: RouteRecordRaw[] = [
     meta: { title: '404', public: true },
   },
   {
+    // Layout 壳路由：不设 meta.title，避免面包屑出现重复的「首页」
+    // children 仅含首页（常量子路由）；其余业务/系统动态路由通过 addRoute('Layout', route) 注入
     path: '/',
+    name: 'Layout',
     component: Layout,
     redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '首页' },
-      },
-    ],
+    children: [dashboardRoute],
   },
   {
     // 兜底：未匹配路由 → 404
@@ -60,6 +60,7 @@ const WHITE_LIST = ['/login', '/register', '/404']
 
 router.beforeEach(async (to) => {
   const userStore = useUserStore()
+  const permissionStore = usePermissionStore()
 
   // 已登录
   if (userStore.isLoggedIn) {
@@ -72,10 +73,19 @@ router.beforeEach(async (to) => {
       try {
         await userStore.fetchMe()
       } catch {
-        // 用户信息拉取失败（token 失效等）→ 清登录态回登录页
         userStore.reset()
+        permissionStore.resetRoutes()
         return { path: '/login', query: { redirect: to.fullPath } }
       }
+    }
+    // 动态路由尚未注入 → 过滤并注入，然后重新导航（防刷新 404）
+    if (!permissionStore.isRoutesReady) {
+      const routes = permissionStore.generateRoutes(userStore.permissions)
+      for (const route of routes) {
+        router.addRoute('Layout', route)
+      }
+      permissionStore.setReady(true)
+      return { ...to, replace: true }
     }
     return true
   }
