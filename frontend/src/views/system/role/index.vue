@@ -39,9 +39,7 @@
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
+            <el-tag :type="commonStatusTag(row.status)">{{ commonStatusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" />
@@ -128,6 +126,7 @@ import type { ElTree } from 'element-plus'
 import { assignMenus, createRole, deleteRole, getRoleMenuIds, pageRoles, updateRole } from '@/api/role'
 import { getMenuTree } from '@/api/menu'
 import type { MenuVO, RoleVO } from '@/types'
+import { commonStatusLabel, commonStatusTag } from '@/utils/dict'
 
 // ==================== 列表 ====================
 const loading = ref(false)

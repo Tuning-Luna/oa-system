@@ -40,9 +40,7 @@
         <el-table-column prop="phone" label="手机号" min-width="120" />
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
+            <el-tag :type="commonStatusTag(row.status)">{{ commonStatusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" />
@@ -150,6 +148,7 @@ import { register } from '@/api/auth'
 import { assignRoles, deleteUser, getUserRoleIds, pageUsers, updateUser } from '@/api/user'
 import { listAllRoles } from '@/api/role'
 import type { RoleVO, UserVO } from '@/types'
+import { commonStatusLabel, commonStatusTag } from '@/utils/dict'
 import { emailRules, nicknameRules, passwordRules, phoneRules, usernameRules } from '@/utils/validators'
 
 // ==================== 列表 ====================

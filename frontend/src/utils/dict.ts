@@ -92,3 +92,36 @@ export function fileTypeLabel(name: string): string {
 export function fileTypeTag(name: string): TagType {
   return FILE_EXT_TAG[fileExtension(name)] ?? 'info'
 }
+
+/** 通用启用状态：1 启用 / 0 禁用 */
+export const commonStatusDict: Record<number, StatusDictItem> = {
+  1: { label: '启用', tagType: 'success' },
+  0: { label: '禁用', tagType: 'danger' },
+}
+
+/** 通用状态名称 */
+export function commonStatusLabel(status: number): string {
+  return commonStatusDict[status]?.label ?? String(status)
+}
+
+/** 通用状态 tag 颜色 */
+export function commonStatusTag(status: number): TagType {
+  return commonStatusDict[status]?.tagType ?? 'info'
+}
+
+/** 菜单类型：1 目录 / 2 菜单 / 3 按钮 */
+export const menuTypeDict: Record<number, StatusDictItem> = {
+  1: { label: '目录', tagType: 'info' },
+  2: { label: '菜单', tagType: 'success' },
+  3: { label: '按钮', tagType: 'warning' },
+}
+
+/** 菜单类型名称 */
+export function menuTypeLabel(type: number): string {
+  return menuTypeDict[type]?.label ?? String(type)
+}
+
+/** 菜单类型 tag 颜色 */
+export function menuTypeTag(type: number): TagType {
+  return menuTypeDict[type]?.tagType ?? 'info'
+}

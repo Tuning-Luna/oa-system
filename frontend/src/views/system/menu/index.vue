@@ -20,7 +20,7 @@
         <el-table-column prop="icon" label="图标" width="90" />
         <el-table-column label="类型" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="typeTagType(row.type)">{{ typeName(row.type) }}</el-tag>
+            <el-tag :type="menuTypeTag(row.type)">{{ menuTypeLabel(row.type) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="path" label="路由地址" min-width="140" show-overflow-tooltip />
@@ -29,9 +29,7 @@
         <el-table-column prop="sort" label="排序" width="70" align="center" />
         <el-table-column label="状态" width="80" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
+            <el-tag :type="commonStatusTag(row.status)">{{ commonStatusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
@@ -112,6 +110,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createMenu, deleteMenu, getMenuTree, updateMenu } from '@/api/menu'
 import type { MenuRequest, MenuVO } from '@/types'
+import { commonStatusLabel, commonStatusTag, menuTypeLabel, menuTypeTag } from '@/utils/dict'
 
 // ==================== 菜单树 ====================
 const loading = ref(false)
@@ -124,15 +123,6 @@ async function fetchTree(): Promise<void> {
   } finally {
     loading.value = false
   }
-}
-
-function typeName(type: number): string {
-  return { 1: '目录', 2: '菜单', 3: '按钮' }[type] ?? String(type)
-}
-
-function typeTagType(type: number): 'info' | 'success' | 'warning' {
-  const map: Record<number, 'info' | 'success' | 'warning'> = { 1: 'info', 2: 'success', 3: 'warning' }
-  return map[type] ?? 'info'
 }
 
 // ==================== 新增/编辑 ====================
