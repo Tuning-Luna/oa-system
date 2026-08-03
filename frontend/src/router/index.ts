@@ -78,14 +78,17 @@ router.beforeEach(async (to) => {
         return { path: '/login', query: { redirect: to.fullPath } }
       }
     }
-    // 动态路由尚未注入 → 过滤并注入，然后重新导航（防刷新 404）
+    // 动态路由尚未注入 → 过滤并注入，然后重新导航
     if (!permissionStore.isRoutesReady) {
       const routes = permissionStore.generateRoutes(userStore.permissions)
       for (const route of routes) {
         router.addRoute('Layout', route)
       }
       permissionStore.setReady(true)
-      return { ...to, replace: true }
+      // 刷新/直接访问动态路由时，目标在注入前会被 catch-all 重定向到 /404；
+      // 用 redirectedFrom（原始目标）回跳，避免误停 404 页
+      const target = to.redirectedFrom?.fullPath || to.fullPath
+      return { path: target, replace: true }
     }
     return true
   }

@@ -61,3 +61,36 @@ export interface RegisterRequest {
   email?: string
   phone?: string
 }
+
+/** 用户分页查询参数 */
+export interface UserQuery {
+  pageNum: number
+  pageSize: number
+  username?: string
+  status?: number
+}
+
+/** 修改用户请求 */
+export interface UserUpdateRequest {
+  nickname?: string
+  email?: string
+  phone?: string
+  avatar?: string
+  status?: number
+}
+
+/** 给用户分配角色请求（全量替换） */
+export interface AssignRoleRequest {
+  roleIds: number[]
+}
+
+/** 角色信息（RoleVO） */
+export interface RoleVO {
+  id: number
+  name: string
+  code: string
+  description: string | null
+  status: number
+  createTime: string
+  updateTime: string
+}

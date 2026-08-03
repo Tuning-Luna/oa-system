@@ -40,6 +40,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { register } from '@/api/auth'
+import { emailRules, nicknameRules, passwordRules, phoneRules, usernameRules } from '@/utils/validators'
 
 const router = useRouter()
 
@@ -54,28 +55,9 @@ const form = reactive({
   phone: '',
 })
 
-/** 可选字段的格式校验：为空则通过 */
-function optionalPattern(pattern: RegExp, message: string) {
-  return {
-    validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
-      if (!value) return callback()
-      return pattern.test(value) ? callback() : callback(new Error(message))
-    },
-    trigger: 'blur' as const,
-  }
-}
-
 const rules: FormRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度需在 3-20 之间', trigger: 'blur' },
-    { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字、下划线', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 8, max: 20, message: '密码长度需在 8-20 之间', trigger: 'blur' },
-    { pattern: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: '密码需同时包含字母和数字', trigger: 'blur' },
-  ],
+  username: usernameRules,
+  password: passwordRules,
   confirmPassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
     {
@@ -86,9 +68,9 @@ const rules: FormRules = {
       trigger: 'blur',
     },
   ],
-  nickname: [{ max: 50, message: '昵称最长 50 个字符', trigger: 'blur' }],
-  email: [optionalPattern(/^[\w.+-]+@[\w-]+(\.[\w-]+)+$/, '邮箱格式不正确')],
-  phone: [optionalPattern(/^1[3-9]\d{9}$/, '手机号格式不正确')],
+  nickname: nicknameRules,
+  email: emailRules,
+  phone: phoneRules,
 }
 
 async function handleRegister(): Promise<void> {

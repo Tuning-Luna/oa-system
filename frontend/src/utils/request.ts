@@ -93,7 +93,7 @@ export function request<T = unknown>(config: AxiosRequestConfig): Promise<T> {
 
 /** 便捷方法对象 */
 export const http = {
-  get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
+  get<T = unknown>(url: string, params?: object): Promise<T> {
     return request<T>({ url, method: 'get', params })
   },
   post<T = unknown>(url: string, data?: unknown): Promise<T> {
@@ -102,11 +102,11 @@ export const http = {
   put<T = unknown>(url: string, data?: unknown): Promise<T> {
     return request<T>({ url, method: 'put', data })
   },
-  delete<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
+  delete<T = unknown>(url: string, params?: object): Promise<T> {
     return request<T>({ url, method: 'delete', params })
   },
   /** 文件下载：返回 Blob */
-  download<T = Blob>(url: string, params?: Record<string, unknown>): Promise<T> {
+  download<T = Blob>(url: string, params?: object): Promise<T> {
     return request<T>({ url, method: 'get', params, responseType: 'blob' })
   },
 }
