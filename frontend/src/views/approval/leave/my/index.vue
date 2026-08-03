@@ -71,7 +71,7 @@
       />
     </el-card>
 
-    <LeaveDetailDrawer v-model="detailVisible" :leave-id="detailId" />
+    <ApprovalDetailDrawer v-model="detailVisible" :business-type="1" :business-id="detailId" />
   </div>
 </template>
 
@@ -82,7 +82,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { cancelLeave, myLeaves } from '@/api/approval'
 import type { LeaveVO } from '@/types'
 import { approvalStatusDict, approvalStatusOptions, leaveTypeDict } from '@/utils/dict'
-import LeaveDetailDrawer from '../components/LeaveDetailDrawer.vue'
+import ApprovalDetailDrawer from '@/components/approval/ApprovalDetailDrawer.vue'
 
 const router = useRouter()
 

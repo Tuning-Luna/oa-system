@@ -39,25 +39,7 @@
         </el-form-item>
 
         <el-form-item label="审批人" prop="approverId">
-          <!-- 有用户列表权限：下拉选择；无权限/获取失败：手动输入用户 ID 兜底 -->
-          <el-select
-            v-if="approverMode === 'select'"
-            v-model="form.approverId"
-            filterable
-            placeholder="选择审批人"
-            style="width: 100%"
-          >
-            <el-option v-for="opt in approverOptions" :key="opt.id" :label="opt.label" :value="opt.id" />
-          </el-select>
-          <el-input-number
-            v-else
-            v-model="form.approverId"
-            :min="1"
-            :controls="false"
-            placeholder="审批人用户 ID"
-            style="width: 200px"
-          />
-          <span v-if="approverMode === 'manual'" class="form-tip">无用户列表权限，请直接填写审批人用户 ID（admin=1）</span>
+          <ApproverSelect v-model="form.approverId" />
         </el-form-item>
 
         <el-form-item>
@@ -70,17 +52,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import ApproverSelect from '@/components/approval/ApproverSelect.vue'
 import { submitLeave } from '@/api/approval'
-import { pageUsers } from '@/api/user'
-import { useUserStore } from '@/stores/user'
 import { leaveTypeDict } from '@/utils/dict'
 
 const router = useRouter()
-const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
 const submitLoading = ref(false)
@@ -91,29 +71,6 @@ const form = reactive({
   reason: '',
   approverId: undefined as number | undefined,
 })
-
-// ==================== 审批人控件 ====================
-const approverMode = ref<'select' | 'manual'>('select')
-const approverOptions = ref<{ id: number; label: string }[]>([])
-
-async function initApproverControl(): Promise<void> {
-  // 普通用户无 system:user:list 权限：直接走手动输入 ID，避免触发「无访问权限」错误提示
-  if (!userStore.permissions.includes('system:user:list')) {
-    approverMode.value = 'manual'
-    return
-  }
-  try {
-    const data = await pageUsers({ pageNum: 1, pageSize: 100 })
-    approverOptions.value = data.records.map((u) => ({
-      id: u.id,
-      label: `${u.nickname || u.username}（ID:${u.id}）`,
-    }))
-    approverMode.value = 'select'
-  } catch {
-    // 获取用户列表失败 → 兜底手动输入
-    approverMode.value = 'manual'
-  }
-}
 
 // ==================== 校验规则 ====================
 const rules = computed<FormRules>(() => ({
@@ -184,10 +141,6 @@ async function handleSubmit(): Promise<void> {
     submitLoading.value = false
   }
 }
-
-onMounted(() => {
-  initApproverControl()
-})
 </script>
 
 <style scoped lang="scss">

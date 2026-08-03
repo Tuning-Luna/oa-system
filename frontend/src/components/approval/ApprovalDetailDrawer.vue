@@ -1,26 +1,37 @@
 <template>
   <el-drawer
     :model-value="modelValue"
-    title="请假详情"
+    :title="title"
     size="480px"
-    :destroy-on-close="false"
     @update:model-value="(val: boolean) => emit('update:modelValue', val)"
     @open="loadDetail"
   >
     <div v-loading="loading">
-      <template v-if="leave">
+      <template v-if="item">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="申请单号">{{ leave.id }}</el-descriptions-item>
-          <el-descriptions-item label="申请人">{{ leave.applicantName }}</el-descriptions-item>
-          <el-descriptions-item label="请假类型">{{ leaveTypeName(leave.leaveType) }}</el-descriptions-item>
-          <el-descriptions-item label="起止日期">{{ leave.startDate }} ~ {{ leave.endDate }}</el-descriptions-item>
-          <el-descriptions-item label="请假天数">{{ leave.days }} 天</el-descriptions-item>
-          <el-descriptions-item label="请假事由">{{ leave.reason }}</el-descriptions-item>
-          <el-descriptions-item label="审批人">{{ leave.approverName }}</el-descriptions-item>
+          <el-descriptions-item label="申请单号">{{ item.id }}</el-descriptions-item>
+          <el-descriptions-item label="申请人">{{ item.applicantName }}</el-descriptions-item>
+
+          <!-- 请假字段 -->
+          <template v-if="businessType === 1 && leave">
+            <el-descriptions-item label="请假类型">{{ leaveTypeDict[leave.leaveType] ?? leave.leaveType }}</el-descriptions-item>
+            <el-descriptions-item label="起止日期">{{ leave.startDate }} ~ {{ leave.endDate }}</el-descriptions-item>
+            <el-descriptions-item label="请假天数">{{ leave.days }} 天</el-descriptions-item>
+            <el-descriptions-item label="请假事由">{{ leave.reason }}</el-descriptions-item>
+          </template>
+
+          <!-- 报销字段 -->
+          <template v-else-if="businessType === 2 && reimburse">
+            <el-descriptions-item label="报销金额">¥ {{ formatMoney(reimburse.amount) }}</el-descriptions-item>
+            <el-descriptions-item label="报销类别">{{ reimburse.category }}</el-descriptions-item>
+            <el-descriptions-item label="报销事由">{{ reimburse.reason }}</el-descriptions-item>
+          </template>
+
+          <el-descriptions-item label="审批人">{{ item.approverName }}</el-descriptions-item>
           <el-descriptions-item label="当前状态">
-            <el-tag :type="statusTag(leave.status)">{{ leave.statusDesc }}</el-tag>
+            <el-tag :type="statusTag(item.status)">{{ item.statusDesc }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="申请时间">{{ leave.createTime }}</el-descriptions-item>
+          <el-descriptions-item label="申请时间">{{ item.createTime }}</el-descriptions-item>
         </el-descriptions>
 
         <el-divider content-position="left">审批记录</el-divider>
@@ -47,15 +58,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { getApprovalRecords, getLeave } from '@/api/approval'
-import type { ApprovalRecordVO, LeaveVO } from '@/types'
+import { computed, ref, watch } from 'vue'
+import { getApprovalRecords, getLeave, getReimburse } from '@/api/approval'
+import type { ApprovalRecordVO, LeaveVO, ReimburseVO } from '@/types'
 import { approvalActionDict, approvalStatusDict, leaveTypeDict } from '@/utils/dict'
+import { formatMoney } from '@/utils/format'
 
 const props = defineProps<{
   modelValue: boolean
-  /** 申请单 ID，打开抽屉时传 */
-  leaveId: number
+  /** 业务类型：1 请假 / 2 报销 */
+  businessType: number
+  /** 申请单 ID */
+  businessId: number
 }>()
 
 const emit = defineEmits<{
@@ -64,11 +78,13 @@ const emit = defineEmits<{
 
 const loading = ref(false)
 const leave = ref<LeaveVO | null>(null)
+const reimburse = ref<ReimburseVO | null>(null)
 const records = ref<ApprovalRecordVO[]>([])
 
-function leaveTypeName(type: number): string {
-  return leaveTypeDict[type] ?? String(type)
-}
+/** 当前业务对象（请假或报销） */
+const item = computed(() => (props.businessType === 1 ? leave.value : reimburse.value))
+
+const title = computed(() => (props.businessType === 1 ? '请假详情' : '报销详情'))
 
 function statusTag(status: number): string {
   return approvalStatusDict[status]?.tagType ?? 'info'
@@ -85,21 +101,26 @@ function actionTimelineType(action: number): string {
 
 /** 打开抽屉时重新拉取详情 + 审批记录 */
 async function loadDetail(): Promise<void> {
-  if (!props.leaveId) return
+  if (!props.businessId) return
   loading.value = true
   leave.value = null
+  reimburse.value = null
   records.value = []
   try {
-    leave.value = await getLeave(props.leaveId)
-    records.value = await getApprovalRecords(1, props.leaveId)
+    if (props.businessType === 1) {
+      leave.value = await getLeave(props.businessId)
+    } else {
+      reimburse.value = await getReimburse(props.businessId)
+    }
+    records.value = await getApprovalRecords(props.businessType, props.businessId)
   } finally {
     loading.value = false
   }
 }
 
-// leaveId 变化（抽屉内重新打开另一单）时也刷新
+// businessId 变化（抽屉内重新打开另一单）时也刷新
 watch(
-  () => props.leaveId,
+  () => props.businessId,
   () => {
     if (props.modelValue) loadDetail()
   },

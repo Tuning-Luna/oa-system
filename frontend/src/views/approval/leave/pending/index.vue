@@ -44,60 +44,27 @@
     </el-card>
 
     <!-- 审批弹窗（通过/拒绝共用） -->
-    <el-dialog
+    <ApprovalActionDialog
       v-model="actionVisible"
-      :title="actionMode === 'approve' ? '审批通过' : '审批拒绝'"
-      width="520px"
-      :close-on-click-modal="false"
-      @closed="resetAction"
-    >
-      <template v-if="currentRow">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="申请人">{{ currentRow.applicantName }}</el-descriptions-item>
-          <el-descriptions-item label="请假类型">{{ leaveTypeDict[currentRow.leaveType] ?? currentRow.leaveType }}</el-descriptions-item>
-          <el-descriptions-item label="起止日期" :span="2">
-            {{ currentRow.startDate }} ~ {{ currentRow.endDate }}（{{ currentRow.days }} 天）
-          </el-descriptions-item>
-          <el-descriptions-item label="请假事由" :span="2">{{ currentRow.reason }}</el-descriptions-item>
-        </el-descriptions>
+      :mode="actionMode"
+      :applicant-name="currentRow?.applicantName ?? ''"
+      :rows="actionRows"
+      :loading="actionLoading"
+      @confirm="handleAction"
+    />
 
-        <el-form ref="actionFormRef" :model="actionForm" :rules="actionRules" label-width="80px" class="action-form">
-          <el-form-item label="审批意见" prop="comment">
-            <el-input
-              v-model="actionForm.comment"
-              type="textarea"
-              :rows="3"
-              maxlength="500"
-              show-word-limit
-              :placeholder="actionMode === 'approve' ? '选填' : '拒绝时请填写审批意见（必填）'"
-            />
-          </el-form-item>
-        </el-form>
-      </template>
-      <template #footer>
-        <el-button @click="actionVisible = false">取消</el-button>
-        <el-button
-          :type="actionMode === 'approve' ? 'success' : 'danger'"
-          :loading="actionLoading"
-          @click="handleAction"
-        >
-          {{ actionMode === 'approve' ? '通过' : '拒绝' }}
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <LeaveDetailDrawer v-model="detailVisible" :leave-id="detailId" />
+    <ApprovalDetailDrawer v-model="detailVisible" :business-type="1" :business-id="detailId" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import ApprovalActionDialog, { type InfoRow } from '@/components/approval/ApprovalActionDialog.vue'
+import ApprovalDetailDrawer from '@/components/approval/ApprovalDetailDrawer.vue'
 import { approveLeave, pendingLeaves, rejectLeave } from '@/api/approval'
 import type { LeaveVO } from '@/types'
 import { leaveTypeDict } from '@/utils/dict'
-import LeaveDetailDrawer from '../components/LeaveDetailDrawer.vue'
 
 // ==================== 列表 ====================
 const loading = ref(false)
@@ -129,33 +96,27 @@ const actionVisible = ref(false)
 const actionLoading = ref(false)
 const actionMode = ref<'approve' | 'reject'>('approve')
 const currentRow = ref<LeaveVO | null>(null)
-const actionFormRef = ref<FormInstance>()
-const actionForm = reactive({ comment: '' })
 
-const actionRules = computed<FormRules>(() => ({
-  comment: actionMode.value === 'reject'
-    ? [{ required: true, message: '拒绝时请填写审批意见', trigger: 'blur' }]
-    : [{ max: 500, message: '审批意见最长 500 字', trigger: 'blur' }],
-}))
+const actionRows = computed<InfoRow[]>(() => {
+  const row = currentRow.value
+  if (!row) return []
+  return [
+    { label: '请假类型', value: leaveTypeDict[row.leaveType] ?? String(row.leaveType) },
+    { label: '起止日期', value: `${row.startDate} ~ ${row.endDate}（${row.days} 天）` },
+    { label: '请假事由', value: row.reason },
+  ]
+})
 
 function openAction(row: LeaveVO, mode: 'approve' | 'reject'): void {
   currentRow.value = row
   actionMode.value = mode
-  actionForm.comment = ''
   actionVisible.value = true
 }
 
-function resetAction(): void {
-  actionFormRef.value?.clearValidate()
-  currentRow.value = null
-}
-
-async function handleAction(): Promise<void> {
-  const valid = await actionFormRef.value?.validate().catch(() => false)
-  if (!valid || !currentRow.value) return
+async function handleAction(comment?: string): Promise<void> {
+  if (!currentRow.value) return
   actionLoading.value = true
   try {
-    const comment = actionForm.comment || undefined
     if (actionMode.value === 'approve') {
       await approveLeave(currentRow.value.id, { comment })
       ElMessage.success('已通过')
@@ -198,10 +159,6 @@ onMounted(() => {
   .pagination {
     margin-top: 16px;
     justify-content: flex-end;
-  }
-
-  .action-form {
-    margin-top: 16px;
   }
 }
 </style>
