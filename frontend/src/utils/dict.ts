@@ -59,3 +59,36 @@ export function messageTypeLabel(type: string): string {
 export function messageTypeTag(type: string): TagType {
   return messageTypeDict[type]?.tagType ?? 'info'
 }
+
+/** 文件扩展名 → 友好类型名（按扩展名映射，未知为「其他」） */
+const FILE_EXT_LABEL: Record<string, string> = {
+  jpg: '图片', jpeg: '图片', png: '图片', gif: '图片',
+  pdf: 'PDF',
+  doc: '文档', docx: '文档',
+  xls: '表格', xlsx: '表格', csv: '表格',
+  txt: '文本',
+}
+
+/** 文件扩展名 → tag 颜色 */
+const FILE_EXT_TAG: Record<string, TagType> = {
+  jpg: 'success', jpeg: 'success', png: 'success', gif: 'success',
+  pdf: 'danger',
+  doc: 'primary', docx: 'primary',
+  xls: 'warning', xlsx: 'warning', csv: 'warning',
+  txt: 'info',
+}
+
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return (dot < 0 ? name : name.slice(dot + 1)).toLowerCase()
+}
+
+/** 文件类型展示名 */
+export function fileTypeLabel(name: string): string {
+  return FILE_EXT_LABEL[fileExtension(name)] ?? '其他'
+}
+
+/** 文件类型 tag 颜色 */
+export function fileTypeTag(name: string): TagType {
+  return FILE_EXT_TAG[fileExtension(name)] ?? 'info'
+}
