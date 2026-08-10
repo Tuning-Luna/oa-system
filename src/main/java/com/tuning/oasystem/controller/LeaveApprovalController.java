@@ -37,7 +37,7 @@ public class LeaveApprovalController {
     @Operation(summary = "提交请假申请", description = "提交后进入待审批状态，需指定审批人")
     @PostMapping
     public Result<LeaveVO> submit(@AuthenticationPrincipal LoginUser loginUser,
-                                  @Valid @RequestBody LeaveSubmitRequest request) {
+            @Valid @RequestBody LeaveSubmitRequest request) {
         return Result.success(leaveService.submit(loginUser.getUserId(), request));
     }
 
@@ -62,7 +62,7 @@ public class LeaveApprovalController {
     @Operation(summary = "审批通过")
     @PutMapping("/{id}/approve")
     public Result<Void> approve(@AuthenticationPrincipal LoginUser loginUser, @PathVariable Long id,
-                                @RequestBody(required = false) ApprovalCommentRequest request) {
+            @RequestBody(required = false) ApprovalCommentRequest request) {
         leaveService.approve(loginUser.getUserId(), id, request != null ? request.getComment() : null);
         return Result.success();
     }
@@ -70,7 +70,7 @@ public class LeaveApprovalController {
     @Operation(summary = "审批拒绝")
     @PutMapping("/{id}/reject")
     public Result<Void> reject(@AuthenticationPrincipal LoginUser loginUser, @PathVariable Long id,
-                               @RequestBody(required = false) ApprovalCommentRequest request) {
+            @RequestBody(required = false) ApprovalCommentRequest request) {
         leaveService.reject(loginUser.getUserId(), id, request != null ? request.getComment() : null);
         return Result.success();
     }

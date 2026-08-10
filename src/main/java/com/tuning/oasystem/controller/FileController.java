@@ -43,7 +43,7 @@ public class FileController {
     @Operation(summary = "上传文件", description = "multipart 表单字段 file；大小 ≤10MB，扩展名白名单（默认 office/图片/PDF）")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<FileVO> upload(@AuthenticationPrincipal LoginUser loginUser,
-                                 @RequestPart("file") MultipartFile file) {
+            @RequestPart("file") MultipartFile file) {
         return Result.success(fileService.upload(loginUser.getUserId(), file));
     }
 

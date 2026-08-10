@@ -27,7 +27,6 @@ import java.util.Map;
  * 文件管理服务实现
  */
 @Service
-// Eclipse 对 MyBatis-Plus LambdaQueryWrapper 方法引用做 null 分析时的误报，统一抑制
 @SuppressWarnings("null")
 public class FileServiceImpl implements FileService {
 
@@ -105,7 +104,8 @@ public class FileServiceImpl implements FileService {
                 .orderByDesc(FileInfo::getId);
 
         Page<FileInfo> page = fileMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
-        Map<Long, String> names = userNameResolver.namesOf(page.getRecords().stream().map(FileInfo::getUploaderId).toList());
+        Map<Long, String> names = userNameResolver
+                .namesOf(page.getRecords().stream().map(FileInfo::getUploaderId).toList());
         List<FileVO> records = page.getRecords().stream()
                 .map(r -> FileVO.from(r, names.get(r.getUploaderId())))
                 .toList();
