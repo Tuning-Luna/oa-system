@@ -35,3 +35,4 @@ build/
 # 本地文件上传目录（阶段 7）
 /upload/
 /uploads/
+/docs/interview
